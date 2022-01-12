@@ -1,0 +1,26 @@
+version: "3.5"
+
+services:
+  server:
+    build: ./server
+    volumes:
+      - group2_servervol:/group2_servervol
+    stdin_open: true
+    tty: true 
+  client:
+    build: ./client
+    stdin_open: true
+    tty: true 
+    depends_on:
+     - server
+    volumes:
+      - group2_clientvol:/group2_clientvol
+    entrypoint: /entrypoint.sh -d server:8080 -c 'curl -o /group2_clientvol/received.txt server:8080/';
+
+volumes:
+  group2_servervol:
+     name: group2_servervol
+  group2_clientvol:
+     name: group2_clientvol
+  
+ 
