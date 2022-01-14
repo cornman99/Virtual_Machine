@@ -1,0 +1,97 @@
+diff --git a/Makefile b/Makefile
+index d4d36c61940b..ecbb92e30212 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1013,7 +1013,7 @@ PHONY += prepare0
+ export MODORDER := $(extmod-prefix)modules.order
+ 
+ ifeq ($(KBUILD_EXTMOD),)
+-core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
++core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/ workspace/
+ 
+ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+ 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
+diff --git a/arch/arm/tools/syscall.tbl b/arch/arm/tools/syscall.tbl
+index 6da7dc4d79cc..c949a873412b 100644
+--- a/arch/arm/tools/syscall.tbl
++++ b/arch/arm/tools/syscall.tbl
+@@ -449,3 +449,4 @@
+ 433	common	fspick				sys_fspick
+ 434	common	pidfd_open			sys_pidfd_open
+ 435	common	clone3				sys_clone3
++436 	common	host_cpuid 			__arm64_sys_host_cpuid
+diff --git a/arch/arm64/include/asm/unistd.h b/arch/arm64/include/asm/unistd.h
+index 2629a68b8724..368761302768 100644
+--- a/arch/arm64/include/asm/unistd.h
++++ b/arch/arm64/include/asm/unistd.h
+@@ -38,7 +38,7 @@
+ #define __ARM_NR_compat_set_tls		(__ARM_NR_COMPAT_BASE + 5)
+ #define __ARM_NR_COMPAT_END		(__ARM_NR_COMPAT_BASE + 0x800)
+ 
+-#define __NR_compat_syscalls		436
++#define __NR_compat_syscalls		437
+ #endif
+ 
+ #define __ARCH_WANT_SYS_CLONE
+diff --git a/arch/arm64/kvm/handle_exit.c b/arch/arm64/kvm/handle_exit.c
+index 706cca23f0d2..0cb5ea0cdc73 100644
+--- a/arch/arm64/kvm/handle_exit.c
++++ b/arch/arm64/kvm/handle_exit.c
+@@ -36,6 +36,10 @@ static void kvm_handle_guest_serror(struct kvm_vcpu *vcpu, u32 esr)
+ static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
+ {
+ 	int ret;
++	if(vcpu_get_reg(vcpu, 0)==777){
++			printk("success in handle_exit");
++			return 777;
++		}
+ 
+ 	trace_kvm_hvc_arm64(*vcpu_pc(vcpu), vcpu_get_reg(vcpu, 0),
+ 			    kvm_vcpu_hvc_get_imm(vcpu));
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index f7c561c4dcdd..066428488b78 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -363,7 +363,7 @@ asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
+ 				int maxevents, int timeout,
+ 				const sigset_t __user *sigmask,
+ 				size_t sigsetsize);
+-
++asmlinkage long __arm64_sys_host_cpuid(void);
+ /* fs/fcntl.c */
+ asmlinkage long sys_dup(unsigned int fildes);
+ asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags);
+diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+index 1fc8faa6e973..d716b1b02b96 100644
+--- a/include/uapi/asm-generic/unistd.h
++++ b/include/uapi/asm-generic/unistd.h
+@@ -850,9 +850,10 @@ __SYSCALL(__NR_pidfd_open, sys_pidfd_open)
+ #define __NR_clone3 435
+ __SYSCALL(__NR_clone3, sys_clone3)
+ #endif
+-
++#define __NR_host_cpuid 436
++__SYSCALL(__NR_host_cpuid, sys_host_cpuid)
+ #undef __NR_syscalls
+-#define __NR_syscalls 436
++#define __NR_syscalls 437
+ 
+ /*
+  * 32 bit systems traditionally used different
+diff --git a/virt/kvm/arm/arm.c b/virt/kvm/arm/arm.c
+index 86c6aa1cb58e..4e2be1018c99 100644
+--- a/virt/kvm/arm/arm.c
++++ b/virt/kvm/arm/arm.c
+@@ -701,7 +701,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
+ 		 * non-preemptible context.
+ 		 */
+ 		preempt_disable();
+-
++		if(ret==777){
++			printk("success");
++			int ret=smp_processor_id();
++			vcpu_set_reg(vcpu, 0, ret);
++		}
+ 		kvm_pmu_flush_hwstate(vcpu);
+ 
+ 		local_irq_disable();
